@@ -52,13 +52,6 @@ struct SolverRec {
     static constexpr state value = move(rec1::final_state, SRC, TARGET);
     using rec2 = SolverRec<DISKS - 1, value, inter, TARGET>;
     static constexpr state final_state = rec2::final_state;
-
-    static std::ostream &print(std::ostream &os, size ndisks) {
-        rec1::print(os, ndisks);
-        print_state(os, ndisks, value) << std::endl;
-        rec2::print(os, ndisks);
-        return os;
-    }
 };
 
 template <size DISKS, state S, tower TOWER>
@@ -66,32 +59,16 @@ struct SolverRec<DISKS, S, TOWER, TOWER> {
     static constexpr tower nextSrc = getTower(S, DISKS - 1);
     using rec = SolverRec<DISKS - 1, S, nextSrc, TOWER>;
     static constexpr state final_state = rec::final_state;
-
-    static std::ostream &print(std::ostream &os, size ndisks) {
-        rec::print(os, ndisks);
-        return os;
-    }
 };
 
 template <state S, tower SRC, tower TARGET>
 struct SolverRec<1, S, SRC, TARGET> {
-    static constexpr state value = move(S, SRC, TARGET);
-    static constexpr state final_state = value;
-
-    static std::ostream &print(std::ostream &os, size ndisks) {
-        print_state(os, ndisks, value) << std::endl;
-        return os;
-    }
+    static constexpr state final_state = move(S, SRC, TARGET);
 };
 
 template <state S, tower TOWER>
 struct SolverRec<1, S, TOWER, TOWER> {
-    static constexpr state value = S;
-    static constexpr state final_state = value;
-
-    static std::ostream &print(std::ostream &os, size ndisks) {
-        return os;
-    }
+    static constexpr state final_state = S;
 };
 
 template <size DISKS, state S, tower TARGET>
@@ -99,16 +76,11 @@ struct Solver {
     static constexpr tower src = getTower(S, DISKS);
     using start = SolverRec<DISKS, S, src, TARGET>;
     static constexpr state final_state = start::final_state;
-
-    static std::ostream &print(std::ostream &os) {
-        print_state(std::cout, DISKS, S) << std::endl; // initial state
-        return start::print(os, DISKS);
-    }
 };
 
 int main() {
     using disks = Disks<0, 0, 0, 0, 0>;
     using solver = Solver<disks::count, disks::packed, 2>;
-    solver::print(std::cout);
+    print_state(std::cout, disks::count, solver::final_state) << std::endl;
     return 0;
 }
