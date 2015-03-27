@@ -44,43 +44,82 @@ struct Disks<> {
     static constexpr state packed = 0;
 };
 
-template <size DISKS, state S, tower SRC, tower TARGET>
+struct ResultNode {
+    state value;
+    ResultNode *next;
+
+    class iterator {
+        const ResultNode *current;
+    public:
+        iterator(const ResultNode *current) : current(current) {};
+        iterator &operator++() { current = current->next; return *this; }
+        state operator*() { return current->value; }
+        bool operator==(const iterator &o) { return current == o.current; }
+        bool operator!=(const iterator &o) { return !(*this == o); }
+    };
+
+    iterator begin() const { return iterator(this); }
+    iterator end() const { return iterator(nullptr); }
+};
+
+template <size DISKS, state S, tower SRC, tower TARGET, ResultNode *AFTER>
 struct SolverRec {
+    static ResultNode node;
     static constexpr tower nextSrc = getTower(S, DISKS - 1);
     static constexpr tower inter = other(SRC, TARGET);
-    using rec1 = SolverRec<DISKS - 1, S, nextSrc, inter>;
+    using rec1 = SolverRec<DISKS - 1, S, nextSrc, inter, &node>;
     static constexpr state value = move(rec1::final_state, SRC, TARGET);
-    using rec2 = SolverRec<DISKS - 1, value, inter, TARGET>;
+    using rec2 = SolverRec<DISKS - 1, value, inter, TARGET, AFTER>;
     static constexpr state final_state = rec2::final_state;
+    static constexpr ResultNode *first = rec1::first;
+    static constexpr ResultNode *next = rec2::first;
 };
 
-template <size DISKS, state S, tower TOWER>
-struct SolverRec<DISKS, S, TOWER, TOWER> {
+template <size DISKS, state S, tower SRC, tower TARGET, ResultNode *AFTER>
+ResultNode SolverRec<DISKS, S, SRC, TARGET, AFTER>::node = { value, next };
+
+template <size DISKS, state S, tower TOWER, ResultNode *AFTER>
+struct SolverRec<DISKS, S, TOWER, TOWER, AFTER> {
     static constexpr tower nextSrc = getTower(S, DISKS - 1);
-    using rec = SolverRec<DISKS - 1, S, nextSrc, TOWER>;
+    using rec = SolverRec<DISKS - 1, S, nextSrc, TOWER, AFTER>;
     static constexpr state final_state = rec::final_state;
+    static constexpr ResultNode *first = rec::first;
 };
 
-template <state S, tower SRC, tower TARGET>
-struct SolverRec<1, S, SRC, TARGET> {
-    static constexpr state final_state = move(S, SRC, TARGET);
+template <state S, tower SRC, tower TARGET, ResultNode *AFTER>
+struct SolverRec<1, S, SRC, TARGET, AFTER> {
+    static ResultNode node;
+    static constexpr state value = move(S, SRC, TARGET);
+    static constexpr state final_state = value;
+    static constexpr ResultNode *first = &node;
+    static constexpr ResultNode *next = AFTER;
 };
 
-template <state S, tower TOWER>
-struct SolverRec<1, S, TOWER, TOWER> {
-    static constexpr state final_state = S;
+template <state S, tower SRC, tower TARGET, ResultNode *AFTER>
+ResultNode SolverRec<1, S, SRC, TARGET, AFTER>::node = { value, next };
+
+template <state S, tower TOWER, ResultNode *AFTER>
+struct SolverRec<1, S, TOWER, TOWER, AFTER> {
+    static constexpr state value = S;
+    static constexpr state final_state = value;
+    static constexpr ResultNode *first = AFTER;
 };
 
 template <size DISKS, state S, tower TARGET>
 struct Solver {
+    static ResultNode list;
     static constexpr tower src = getTower(S, DISKS);
-    using start = SolverRec<DISKS, S, src, TARGET>;
-    static constexpr state final_state = start::final_state;
+    using start = SolverRec<DISKS, S, src, TARGET, nullptr>;
 };
+
+template <size DISKS, state S, tower TARGET>
+ResultNode Solver<DISKS, S, TARGET>::list = { S, start::first };
 
 int main() {
     using disks = Disks<0, 0, 0, 0, 0>;
     using solver = Solver<disks::count, disks::packed, 2>;
-    print_state(std::cout, disks::count, solver::final_state) << std::endl;
+    for (state s : solver::list) {
+        print_state(std::cout, disks::count, s) << std::endl;
+    }
     return 0;
 }
