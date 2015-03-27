@@ -25,6 +25,25 @@ std::ostream &print_state(std::ostream &os, size ndisks, state s) {
     return ndisks ? print_state(os, ndisks - 1, s / 3) << s % 3 : os;
 }
 
+template <tower ...T>
+struct Disks;
+
+template <tower H, tower ...T>
+struct Disks<H, T...> {
+    static constexpr state count = 1 + sizeof...(T);
+    static constexpr state pack(state tmp) {
+        return Disks<T...>::pack(tmp * 3 + H);
+    }
+    static constexpr state packed = pack(0);
+};
+
+template <>
+struct Disks<> {
+    static constexpr state count = 0;
+    static constexpr state pack(state tmp) { return tmp; };
+    static constexpr state packed = 0;
+};
+
 template <size DISKS, state S, tower SRC, tower TARGET>
 struct SolverRec {
     static constexpr tower nextSrc = getTower(S, DISKS - 1);
@@ -60,8 +79,8 @@ struct Solver {
 };
 
 int main() {
-    constexpr size disks = 5;
-    using solver = Solver<disks, 0, 2>;
-    print_state(std::cout, disks, solver::final_state) << std::endl;
+    using disks = Disks<0, 0, 0, 0, 0>;
+    using solver = Solver<disks::count, disks::packed, 2>;
+    print_state(std::cout, disks::count, solver::final_state) << std::endl;
     return 0;
 }
