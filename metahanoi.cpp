@@ -21,27 +21,47 @@ constexpr tower getTower(state s, size disk) {
         : getTower(s / 3, disk - 1);
 }
 
-constexpr state solve(size disks, state s, tower target) {
-    return disks == 0
-        ? s
-        : getTower(s, disks) == target
-            ? solve(disks - 1, s, target)
-            : solve(disks - 1,
-                    move(solve(disks - 1,
-                               s,
-                               other(getTower(s, disks), target)),
-                         getTower(s, disks),
-                         target),
-                    target);
-}
-
 std::ostream &print_state(std::ostream &os, size ndisks, state s) {
     return ndisks ? print_state(os, ndisks - 1, s / 3) << s % 3 : os;
 }
 
+template <size DISKS, state S, tower SRC, tower TARGET>
+struct SolverRec {
+    static constexpr tower nextSrc = getTower(S, DISKS - 1);
+    static constexpr tower inter = other(SRC, TARGET);
+    using rec1 = SolverRec<DISKS - 1, S, nextSrc, inter>;
+    static constexpr state value = move(rec1::final_state, SRC, TARGET);
+    using rec2 = SolverRec<DISKS - 1, value, inter, TARGET>;
+    static constexpr state final_state = rec2::final_state;
+};
+
+template <size DISKS, state S, tower TOWER>
+struct SolverRec<DISKS, S, TOWER, TOWER> {
+    static constexpr tower nextSrc = getTower(S, DISKS - 1);
+    using rec = SolverRec<DISKS - 1, S, nextSrc, TOWER>;
+    static constexpr state final_state = rec::final_state;
+};
+
+template <state S, tower SRC, tower TARGET>
+struct SolverRec<1, S, SRC, TARGET> {
+    static constexpr state final_state = move(S, SRC, TARGET);
+};
+
+template <state S, tower TOWER>
+struct SolverRec<1, S, TOWER, TOWER> {
+    static constexpr state final_state = S;
+};
+
+template <size DISKS, state S, tower TARGET>
+struct Solver {
+    static constexpr tower src = getTower(S, DISKS);
+    using start = SolverRec<DISKS, S, src, TARGET>;
+    static constexpr state final_state = start::final_state;
+};
+
 int main() {
-    constexpr int disks = 5;
-    constexpr state result = solve(disks, 0, 2);
-    print_state(std::cout, disks, result) << std::endl;
+    constexpr size disks = 5;
+    using solver = Solver<disks, 0, 2>;
+    print_state(std::cout, disks, solver::final_state) << std::endl;
     return 0;
 }
